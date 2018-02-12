@@ -11,11 +11,15 @@
 
 
 Multi_delegate::Multi_delegate(uint8_t capacity) :_capacity(capacity)
-{}
+{
+	_pointers = new Base_container* [_capacity];
+	for(uint8_t i=0; i<_capacity; i++)
+		_pointers[i] = 0;
+}
 
 void Multi_delegate::call(uint8_t number)
 {
-	if (_pointers[number] != 0)
+	if (_pointers[number])
 		_pointers[number]->Execute();
 }
 

@@ -1,21 +1,40 @@
 /*
- * GPIO.h
+ * TIMER.h
  *
  *  Created on: 10 февр. 2018 г.
  *      Author: Devil
  */
 
-#ifndef GPIO_H_
-#define GPIO_H_
+#ifndef TIMER_H_
+#define TIMER_H_
 
-#define TIMER_BLOCKS		14
+#define TIMER_BLOCKS			15
+#define SYSTICK_INTERRUPTS		1
+#define BASIC_TIM_INTERRUPTS	1
+#define GENERAL_TIM_INTERRUPTS	6
+#define ADVANCED_TIM_INTERRUPTS	8
+
+#define UPDATE_INT 		0
+#define COMPARE1_INT 	1
+#define COMPARE2_INT 	2
+#define COMPARE3_INT 	3
+#define COMPARE4_INT 	4
+#define COM_INT			5
+#define TRIGGER_INT		6
+#define BREAK_INT		7
+
+
+#define _RCC_REG(i)		MMIO32(RCC_BASE + ((i) >> 5))
+#define _RCC_BIT(i)		(1 << ((i) & 0x1f))
+#define TIM_CCR(tim_base, channel)		MMIO32((tim_base) + 0x34 + (channel*4))
+#define TIM_CCMR(tim_base, channel)		MMIO32((tim_base) + 0x18 + ((channel/2)*4))
 
 #include <libopencm3/cm3/nvic.h>
+#include <libopencm3/cm3/systick.h>
 #include <libopencm3/stm32/exti.h>
 #include <libopencm3/stm32/rcc.h>
 #include <libopencm3/stm32/gpio.h>
 #include <libopencm3/stm32/timer.h>
-#include <libopencm3/stm32/systick.h>
 
 #include <SYS_LOG.h>
 #include <SYS_MISC.h>
@@ -24,65 +43,130 @@ enum TIMER_blocks
 {
 	SYSTICK, TIMER1, TIMER2, TIMER3, TIMER4, TIMER5, TIMER6, TIMER7, TIMER8, TIMER9, TIMER10, TIMER11, TIMER12, TIMER13, TIMER14
 };
-enum TIMER_state
+//enum TIMER_mode
+//{
+//	MANUAL_MODE, TIMEBASE_MODE, PWM_MODE, INPUT_MODE, ENCODER_MODE
+//};
+//enum TIMER_interrupts
+//{
+//	UPDATE_INT, COMPARE1_INT, COMPARE2_INT, COMPARE3_INT, COMPARE4_INT, COM_INT, TRIGGER_INT, BREAK_INT
+//};
+enum CHANNEL_mode
 {
-	MANUAL_MODE, TIMEBASE_MODE, PWM_MODE, INPUT_MODE, ENCODER_MODE
+	MANUAL_MODE, INPUT_MODE, PWM_MODE, ENCODER_MODE
 };
 
-typedef struct block_parameters
+typedef struct timer_param
 {
-	uint8_t _mode;
+	uint8_t mode;
+	uint8_t direction;
 	float frequency;
-} block_param;
-
-
-class Timer
+} timer_parameters;
+typedef struct channel_param
 {
-private:
+	uint8_t mode;
+	uint8_t polarity;
+	float duty;
+} channel_parameters;
+
+
+class Timer_interface
+{
+protected:
 	static const uint32_t BLOCK_ADDRESSES[TIMER_BLOCKS];
 	static const uint32_t RCC_ADDRESSES[TIMER_BLOCKS];
-	static Timer* _instances[];
-	static Multi_delegate* ISR;
 	uint32_t _block_address;
-	uint32_t _block_number;
-	block_param parameters;
+	uint8_t _block_number;
 
-	friend Timer* add<Timer>(uint8_t block);
-	Timer(uint8_t block);
-	virtual uint8_t is_accessible();
-	virtual ~Timer();
+	timer_param _block_parameters;
 public:
-	static void search_flags(uint8_t start, uint8_t finish);
-	static void invoke_ISR(uint8_t EXTI_line);
+	Timer_interface();
+	Timer_interface(uint8_t block);
+	virtual void enable();
+	virtual void reset();
+	virtual void set_period(timer_parameters config);
+	virtual void channel_mode(uint8_t channel, channel_parameters config);
+	virtual void set_irq_hardware(uint8_t interrupt);
+	virtual void start();
+	virtual void start_single();
+	static void search_flags(uint8_t block);
+
+	virtual ~Timer_interface();
+};
+
+class Timer_sys: public Timer_interface
+{
+public:
+	Timer_sys(uint8_t block);
+
+	virtual void enable() {}
+	virtual void reset() {}
+	virtual void set_period(timer_parameters config);
+	virtual void set_irq_hardware(uint8_t interrupt);
+	virtual void start();
+};
+class Timer_basic: public Timer_interface
+{
+public:
+	Timer_basic();
+	Timer_basic(uint8_t block);
 
 	virtual void enable();
-	virtual void set_mode(uint8_t mode);
+	virtual void reset();
+	virtual void set_period(timer_parameters config);
+	virtual void set_irq_hardware(uint8_t interrupt);
 	virtual void start();
-
-	template<class class_target, class method_target>
-	void set_irq(uint8_t pin, uint8_t edge, class_target* target_this, method_target method)
-	{
-		if(pin>=16)
-			return;
-		if(pin>=10)
-			nvic_enable_irq(NVIC_EXTI15_10_IRQ);
-		else if(pin>=5)
-			nvic_enable_irq(NVIC_EXTI9_5_IRQ);
-		else
-			nvic_enable_irq(EXTI0+pin);
-
-		AFIO_EXTICR(pin/4) = ((AFIO_EXTICR(pin/4) & ~(0x0F<<((pin%4)*4)))) | (_block_number<<((pin%4)*4));	//Choose the port
-		exti_set_trigger((1<<pin), (exti_trigger_type)edge);
-		exti_enable_request(1<<pin);
-
-		ISR->add<class_target, method_target>(pin, target_this, method);
-	}
+	virtual void start_single();
 };
-
-class Basic_timer: public Timer
+class Timer_general_2ch : public Timer_basic
 {
-	virtual uint8_t is_accessible();
+public:
+	Timer_general_2ch(uint8_t block);
+
+	virtual void channel_mode(uint8_t channel, channel_parameters config);
+};
+class Timer_general_4ch : public Timer_basic
+{
+public:
+	Timer_general_4ch(uint8_t block);
+
+	virtual void channel_mode(uint8_t channel, channel_parameters config);
+};
+class Timer_advance : public Timer_basic
+{
+public:
+	Timer_advance(uint8_t block);
+
+	virtual void channel_mode(uint8_t channel, channel_parameters config);
 };
 
 
-#endif /* GPIO_H_ */
+class Timer : public Timer_interface
+{
+private:
+	Timer(uint8_t block);
+	bool is_accessible();
+	bool _created_properly;
+	static Timer* _instances[];
+	friend Timer* add<Timer>(uint8_t block);
+	Timer_interface* instance;
+	Multi_delegate* ISR;
+public:
+	~Timer();
+	virtual void enable();
+	virtual void reset();
+	virtual void set_period(timer_parameters config);
+	virtual void channel_mode(uint8_t channel, channel_parameters config);
+	virtual void start();
+	virtual void start_single();
+	template<class class_target, class method_target>
+	void set_irq(uint8_t interrupt, class_target* target_this, method_target method)
+	{
+		instance->set_irq_hardware(interrupt);
+		ISR->add<class_target, method_target>(interrupt, target_this, method);
+	}
+	static void search_flags(uint8_t block);
+	static void invoke_ISR(uint8_t block, uint8_t interrupt);
+};
+
+#endif /* TIMER_H_ */

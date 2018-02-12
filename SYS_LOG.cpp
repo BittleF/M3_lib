@@ -13,7 +13,7 @@
 		_error_log_pointer = 0;
 		_error_log_downcount = 0;
 	}
-	static void Sys_log::push_error(uint8_t error)
+	void Sys_log::push_error(uint8_t error)
 	{
 		if(!_default_instance)
 		{
@@ -26,7 +26,7 @@
 		if(_default_instance->_error_log_downcount < SYS_LOG_LENGTH)
 			_default_instance->_error_log_downcount++;
 	}
-	static uint8_t Sys_log::pop_error()
+	uint8_t Sys_log::pop_error()
 	{
 		if(!_default_instance)
 		{

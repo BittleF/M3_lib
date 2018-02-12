@@ -11,6 +11,27 @@
 #define MAX_CAPACITY 16
 
 #include <stdint.h>
+#include <SYS_LOG.h>
+
+
+template<class device_type>
+static device_type* add(uint8_t block)
+{
+	if (!(device_type::_instances[block]))
+	{
+		device_type::_instances[block] = new device_type(block);
+		if(!(device_type::_instances[block]->is_accessible()))
+		{
+			delete device_type::_instances[block];
+			device_type::_instances[block] = 0;
+			Sys_log::push_error(ERR_CREATION_FAILED);
+		}
+		else
+			device_type::_instances[block]->enable();
+	}
+	return device_type::_instances[block];
+}
+
 
 class Base_container
 {
@@ -39,7 +60,7 @@ class Multi_delegate
 {
 private:
 	uint8_t _capacity;
-	Base_container* _pointers[MAX_CAPACITY] = {0};
+	Base_container** _pointers = 0;
 
 public:
 	Multi_delegate(uint8_t capacity);
@@ -49,8 +70,10 @@ public:
 	{
 		if(number<=MAX_CAPACITY)
 		{
-			if(_pointers[number] != 0)
+			if(_pointers[number])
+			{
 				delete _pointers[number];
+			}
 			_pointers[number] = new Container<class_target, method_target>(target_this, method);
 		}
 	}

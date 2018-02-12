@@ -47,7 +47,7 @@ private:
 	static Multi_delegate* ISR;
 	static uint8_t _AFIO_use;
 	uint32_t _block_address;
-	uint32_t _block_number;
+	uint8_t _block_number;
 
 	friend GPIO* add<GPIO>(uint8_t block);
 	GPIO(uint8_t block);
@@ -74,7 +74,7 @@ public:
 		else if(pin>=5)
 			nvic_enable_irq(NVIC_EXTI9_5_IRQ);
 		else
-			nvic_enable_irq(EXTI0+pin);
+			nvic_enable_irq(NVIC_EXTI0_IRQ+pin);
 
 		AFIO_EXTICR(pin/4) = ((AFIO_EXTICR(pin/4) & ~(0x0F<<((pin%4)*4)))) | (_block_number<<((pin%4)*4));	//Choose the port
 		exti_set_trigger((1<<pin), (exti_trigger_type)edge);

@@ -12,7 +12,7 @@ GPIO* GPIO::_instances[GPIO_BLOCKS] = { 0 };
 Multi_delegate*  GPIO::ISR = new Multi_delegate(0);
 uint8_t GPIO::_AFIO_use = 0;
 const uint32_t GPIO::BLOCK_ADDRESSES[GPIO_BLOCKS] = {GPIOA,GPIOB,GPIOC,GPIOD,GPIOE,GPIOF,GPIOG};
-const rcc_periph_clken GPIO::RCC_ADDRESSES[GPIO_BLOCKS] = {RCC_GPIOA,RCC_GPIOB,RCC_GPIOC,RCC_GPIOD,RCC_GPIOE,RCC_GPIOF,RCC_GPIOG};
+const uint32_t GPIO::RCC_ADDRESSES[GPIO_BLOCKS] = {RCC_GPIOA,RCC_GPIOB,RCC_GPIOC,RCC_GPIOD,RCC_GPIOE,RCC_GPIOF,RCC_GPIOG};
 
 GPIO::GPIO(uint8_t block)
 {
@@ -28,7 +28,7 @@ uint8_t GPIO::is_accessible()
 		return false;
 }
 
-static void GPIO::search_flags(uint8_t start, uint8_t finish)
+void GPIO::search_flags(uint8_t start, uint8_t finish)
 {
 	for(uint8_t bit = start; bit<=finish; bit++)
 	{
@@ -37,7 +37,7 @@ static void GPIO::search_flags(uint8_t start, uint8_t finish)
 	}
 }
 
-static void GPIO::invoke_ISR(uint8_t EXTI_line)
+void GPIO::invoke_ISR(uint8_t EXTI_line)
 {
 	EXTI_PR |= (1<<EXTI_line);
 
@@ -80,3 +80,7 @@ void GPIO::clear(uint8_t pin)
 }
 
 
+void exti9_5_isr(void)
+{
+	GPIO::search_flags(5,9);
+}
